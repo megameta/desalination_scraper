@@ -12,43 +12,22 @@
 from scrapy.contrib.spiders import CrawlSpider, Rule
 from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
 from scrapy.selector import Selector
-from scrapy.item import Item, Field
-
-from nltk import clean_html
-
-from docx import Document
-
-class PageItem(Item):
-    depth = Field()
-    current_url = Field()
-    format = Field()
-    title = Field()
-    body = Field()
+from scrapy.conf import settings
 
 class DesalinationSpider(CrawlSpider):
     name = 'desalination'
     start_urls = ["http://en.wikipedia.org/wiki/Desalination"]
+    allowed_domains = ['en.wikipedia.com']
 
-    # pass responses to either parse_html or parse_pdf depending on whether URLs end in .html and .pdf
-
-    rules = [
-        Rule(SgmlLinkExtractor(allow=('\.html', )), callback='parse_html'),
-        Rule(SgmlLinkExtractor(allow=('\.pdf', )), callback='parse_pdf')
-    ]
+    rules = (
+        Rule(SgmlLinkExtractor(restrict_xpaths=('//body')), follow=True, callback='parse_html')
+    )
 
     def __init__(self, *args, **kwargs):
+        settings.overrides['DEPTH_LIMIT'] = 1
         super(DesalinationSpider, self).__init__(*args, **kwargs)
 
     def parse_html(self, response):
         sel = Selector(response)
-        items = []
-        item = PageItem()
-        item['depth'] = response.meta['depth']
-        item['current_url'] = response.url
-        item['title'] = sel.xpath('//head/title/text()').extract()
-        item['body'] = clean_html(sel.xpath('//body'))
-        items.append(item)
-        return items
-
-    def parse_pdf(self, response):
-        sel = Selector(response)
+        with open(sel.xpath("//h1[@id='firstHeading']").extract(), 'w') as f:
+            f.write(response.body)
