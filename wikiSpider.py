@@ -10,24 +10,29 @@
 # Author: Brian Creeden
 
 from scrapy.contrib.spiders import CrawlSpider, Rule
-from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor
+from scrapy.contrib.linkextractors import LinkExtractor
 from scrapy.selector import Selector
 from scrapy.conf import settings
+
+import os
 
 class DesalinationSpider(CrawlSpider):
     name = 'desalination'
     start_urls = ["http://en.wikipedia.org/wiki/Desalination"]
-    allowed_domains = ['en.wikipedia.com']
+    allowed_domains = ["en.wikipedia.org"]
 
-    rules = (
-        Rule(SgmlLinkExtractor(restrict_xpaths=('//body')), follow=True, callback='parse_html')
-    )
+    rules = [
+        Rule(LinkExtractor(allow='en.wikipedia.org\/wiki'))
+    ]
 
     def __init__(self, *args, **kwargs):
-        settings.overrides['DEPTH_LIMIT'] = 1
+        settings.set('DEPTH_LIMIT', 2)
+        settings.set('DOWNLOAD_DELAY', 2)
+        settings.set('COOKIES_ENABLED', False)
         super(DesalinationSpider, self).__init__(*args, **kwargs)
 
     def parse_html(self, response):
         sel = Selector(response)
-        with open(sel.xpath("//h1[@id='firstHeading']").extract(), 'w') as f:
-            f.write(response.body)
+        filename = sel.xpath('//title/text()').extract()[0]
+        file = open(filename + '.html', 'w')
+        file.write(response.body)
